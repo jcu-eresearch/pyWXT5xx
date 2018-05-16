@@ -142,6 +142,8 @@ class InvalidCRC(Exception):
 class BaseMessageParser:
     logger = logging.getLogger("Message")
 
+    def __init__(self): pass
+
     def parse(self, address, message):
         raise Exception("Not implemented")
 
@@ -323,6 +325,12 @@ class CommandResponseMessageParser(BaseMessageParser):
             return {"Type": "Command Response", "Data": { "Result": values[1]}}
 
 class PTUSettingsMessageParser(BaseMessageParser):
+
+    def __init__(self):
+        BaseMessageParser.__init__(self)
+        self.order = ["Pa", "Ta", "Tp", "Ua"]
+
+
     def parse(self, address, message):
         values = message.split(",")
         command = values[0]
@@ -354,7 +362,17 @@ class PTUSettingsMessageParser(BaseMessageParser):
 
             return result
 
+    def create_message(self, settings):
+        R = settings['R']
 
+        R['Composite'] = "".join([str(int(R["Composite"][x])) for x in self.order])
+        R['Requested'] = "".join([str(int(R["Requested"][x])) for x in self.order])
+        settings['R'] = "%s0000&%s0000"%(R['Requested'], R['Composite'])
+        tmp = []
+        for i in settings:
+            tmp.append("%s=%s"%(i, settings[i]))
+
+        return ",".join(tmp)
 
 
 class MessageParser:
@@ -488,8 +506,14 @@ class Message:
         return self.checksum(result) + self.term
 
 
-    def set_ptu_settings(self):
-        pass
+    def set_ptu_settings(self, settings):
+        return self.checksum(
+            self.address +
+            ASCII_PTU_SETTINGS +
+            "," +
+            PTUSettingsMessageParser().create_message(settings)) + \
+            self.term
+
 
 class ASCIIMessage(Message):
     term = ASCII_COMMAND_TERM
