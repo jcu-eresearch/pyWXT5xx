@@ -94,10 +94,34 @@ def add_ptu_arguments(parser):
     parser.add_argument("--cTp" ,type=bool, choices=[True, False], help="Composite Message (En/Dis)able Internal Temperature (Used in pressure caculation)")
 
 
+def add_precip_arguments(parser):
+    parser.add_argument("--interval", metavar="<interval>", default=60, type=int, choices=range(1, 3600), help="The update interval (for automatic mode) from 1 to 3600 seconds.")
+    parser.add_argument("--precip_unit", type=str, choices=["M", "I"], help="The Precipitation Units: M = Metric, I = Imperial.")
+    parser.add_argument("--hail_unit", type=str, choices=["M", "I"], help="The Hail Units: M = Metric, I = Imperial.")
+    parser.add_argument("--send_mode", type=str, choices=["R", "C", "T"], help="The Auto send mode: R = on/off, C = tiping bucket, T = time based. See P.140 of the Manual for further details.")
+    parser.add_argument("--counter_reset", type=str, choices=["M", "A", "L", "Y"], help="The Counter Reset: M = Manual, A = Automatic, L = Overflow, Y = Immediate reset. See P.140 of the Manual for further details.")
+    parser.add_argument("--rain_accum_limit", metavar="<rain_accum_limit>", type=str, choices=range(100, 65535), help="The Rain Accumulation Limit: 100-65535")
+    parser.add_argument("--hail_accum_limit", metavar="<hail_accum_limit>", type=str, choices=range(100, 65535), help="The Rain Accumulation Limit: 100-65535")
 
+    parser.add_argument("--Rc" ,type=bool, choices=[True, False], help="(En/Dis)able Rain amount")
+    parser.add_argument("--Rd" ,type=bool, choices=[True, False], help="(En/Dis)able Rain duration")
+    parser.add_argument("--Ri" ,type=bool, choices=[True, False], help="(En/Dis)able Rain intensity")
+    parser.add_argument("--Hc" ,type=bool, choices=[True, False], help="(En/Dis)able Hail amount")
+    parser.add_argument("--Hd" ,type=bool, choices=[True, False], help="(En/Dis)able Hail duration")
+    parser.add_argument("--Hi" ,type=bool, choices=[True, False], help="(En/Dis)able Hail intensity")
+    parser.add_argument("--Rp" ,type=bool, choices=[True, False], help="(En/Dis)able Rain peak")
+    parser.add_argument("--Hp" ,type=bool, choices=[True, False], help="(En/Dis)able Hail peak")
 
+    parser.add_argument("--cRc" ,type=bool, choices=[True, False], help="Composite Message (En/Dis)able Rain amount")
+    parser.add_argument("--cRd" ,type=bool, choices=[True, False], help="Composite Message (En/Dis)able Rain duration")
+    parser.add_argument("--cRi" ,type=bool, choices=[True, False], help="Composite Message (En/Dis)able Rain intensity")
+    parser.add_argument("--cHc" ,type=bool, choices=[True, False], help="Composite Message (En/Dis)able Hail amount")
+    parser.add_argument("--cHd" ,type=bool, choices=[True, False], help="Composite Message (En/Dis)able Hail duration")
+    parser.add_argument("--cHi" ,type=bool, choices=[True, False], help="Composite Message (En/Dis)able Hail intensity")
+    parser.add_argument("--cRp" ,type=bool, choices=[True, False], help="Composite Message (En/Dis)able Rain peak")
+    parser.add_argument("--cHp" ,type=bool, choices=[True, False], help="Composite Message (En/Dis)able Hail peak")
 
-def read_ptu(args):
+def get_ptu(args):
 
     device = create_device(args)
     pprint(device.get_ptu_settings())
@@ -113,11 +137,11 @@ def set_ptu(args):
 
 
     if args.interval is not None:
-        settings['I'] = args.interval
+        settings['I'] = str(args.interval)
     if args.pressure_unit is not None:
-        settings['P'] = args.pressure_unit
+        settings['P'] = str(args.pressure_unit)
     if args.temperature_unit is not None:
-        settings['T'] = args.temperature_unit
+        settings['T'] = str(args.temperature_unit)
 
 
     if args.Pa is not None:
@@ -130,13 +154,13 @@ def set_ptu(args):
         settings['R']['Requested']['Tp'] = args.Tp
 
     if args.cPa is not None:
-        settings['R']['Composite']['Pa'] = args.Pa
+        settings['R']['Composite']['Pa'] = args.cPa
     if args.cUa is not None:
-        settings['R']['Composite']['Ua'] = args.Ua
+        settings['R']['Composite']['Ua'] = args.cUa
     if args.cTa is not None:
-        settings['R']['Composite']['Ta'] = args.Ta
+        settings['R']['Composite']['Ta'] = args.cTa
     if args.cTp is not None:
-        settings['R']['Composite']['Tp'] = args.Tp
+        settings['R']['Composite']['Tp'] = args.cTp
 
     args.logger.info("Updated : %s"%settings)
 
@@ -144,6 +168,75 @@ def set_ptu(args):
 
     device.close()
 
+
+def get_precip(args):
+    device = create_device(args)
+    pprint(device.get_precipitation_settings())
+    device.close()
+
+def set_precip(args):
+    print args
+    device = create_device(args)
+    settings = device.get_precipitation_settings()
+
+    args.logger.info("Original: %s"%settings)
+
+
+    if args.interval is not None:
+        settings['I'] = str(args.interval)
+    if args.precip_unit is not None:
+        settings['U'] = str(args.precip_unit)
+    if args.hail_unit is not None:
+        settings['S'] = str(args.hail_unit)
+    if args.send_mode is not None:
+        settings['M'] = str(args.send_mode)
+    if args.counter_reset is not None:
+        settings['Z'] = str(args.counter_reset)
+    if args.rain_accum_limit is not None:
+        settings['X'] = str(args.rain_accum_limit)
+    if args.hail_accum_limit is not None:
+        settings['Y'] = str(args.hail_accum_limit)
+
+
+    if args.Rc is not None:
+        settings['R']['Requested']['Rc'] = args.Rc
+    if args.Rd is not None:
+        settings['R']['Requested']['Rd'] = args.Rd
+    if args.Ri is not None:
+        settings['R']['Requested']['Ri'] = args.Ri
+    if args.Hc is not None:
+        settings['R']['Requested']['Hc'] = args.Hc
+    if args.Hd is not None:
+        settings['R']['Requested']['Hd'] = args.Hd
+    if args.Hi is not None:
+        settings['R']['Requested']['Hi'] = args.Hi
+    if args.Rp is not None:
+        settings['R']['Requested']['Rp'] = args.Rp
+    if args.Hp is not None:
+        settings['R']['Requested']['Hp'] = args.Hp
+
+    if args.cRc is not None:
+        settings['R']['Composite']['Rc'] = args.cRc
+    if args.cRd is not None:
+        settings['R']['Composite']['Rd'] = args.cRd
+    if args.cRi is not None:
+        settings['R']['Composite']['Ri'] = args.cRi
+    if args.cHc is not None:
+        settings['R']['Composite']['Hc'] = args.cHc
+    if args.cHd is not None:
+        settings['R']['Composite']['Hd'] = args.cHd
+    if args.cHi is not None:
+        settings['R']['Composite']['Hi'] = args.cHi
+    if args.cRp is not None:
+        settings['R']['Composite']['Rp'] = args.cRp
+    if args.cHp is not None:
+        settings['R']['Composite']['Hp'] = args.cHp
+
+    args.logger.info("Updated : %s"%settings)
+
+    device.set_precipitation_settings(settings)
+
+    device.close()
 
 def main():
 
@@ -156,7 +249,7 @@ def main():
     add_arguments(read_parser)
     add_serial_arguments(read_parser)
 
-    ptu_parser = subparsers.add_parser("read_ptu", help="Retrieve the PTU settings.")
+    ptu_parser = subparsers.add_parser("get_ptu", help="Retrieve the PTU settings.")
     add_arguments(ptu_parser)
     add_serial_arguments(ptu_parser)
 
@@ -164,6 +257,16 @@ def main():
     add_arguments(ptu_parser)
     add_serial_arguments(ptu_parser)
     add_ptu_arguments(ptu_parser)
+
+    precip_parser = subparsers.add_parser("get_precip", help="Set the Precipitation settings.")
+    add_arguments(precip_parser)
+    add_serial_arguments(precip_parser)
+
+    precip_parser = subparsers.add_parser("set_precip", help="Get the Precipitation settings, for more detail see Page 138-143 of the Manual for more details.")
+    add_arguments(precip_parser)
+    add_serial_arguments(precip_parser)
+    add_precip_arguments(precip_parser)
+
 
     args = parser.parse_args()
 
