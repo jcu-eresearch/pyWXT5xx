@@ -24,7 +24,8 @@ ASCII_RESET_PRECIPITATION_INTENSITY = b'xZRI'
 ASCII_RESET_PRECIPITATION_COUNTERS = b'xZRU'
 
 ASCII_PTU_SETTINGS = b'xTU'
-ASCII_Wind_SETTINGS = b'xWU'
+ASCII_WIND_SETTINGS = b'xWU'
+ASCII_PRECIPITATION_SETTINGS = b'xRU'
 
 WIND_RESULT = "r1"
 PTU_RESULT = "r2"
@@ -215,26 +216,46 @@ class BaseMessageParser:
             vmap[key] = i
         return vmap
 
+    def add_field(self, data, name, field, vmap, transform=lambda a: a):
+
+        if type(field) == list:
+            tmp = []
+            for i in field:
+                if i in vmap:
+                    tmp.append(transform(self.parse_unit(vmap[i])))
+            data[name] = tmp
+        else:
+            if field in vmap:
+                data[name] = transform(self.parse_unit(vmap[field]))
+
+
+
+
 
 class WindDataMessageParser(BaseMessageParser):
     def parse(self, address, message):
         values = message.split(",")
         if values[0] == WIND_RESULT:
             vmap = self.create_lookup(values[1:])
-            return {
+            data = {
                 "Type": "Wind",
                 "Data": {
                     "Speed": {
-                        "Average": self.parse_unit(vmap['Sm']),
-                        "Limits": [self.parse_unit(vmap['Sn']), self.parse_unit(vmap['Sx'])]
+                        # "Average": self.parse_unit(vmap['Sm']),
+                        # "Limits": [self.parse_unit(vmap['Sn']), self.parse_unit(vmap['Sx'])]
                     },
                     "Direction": {
-                        "Average": self.parse_unit(vmap['Dm']),
-                        "Limits": [self.parse_unit(vmap['Dn']), self.parse_unit(vmap['Dx'])]
+                        # "Average": self.parse_unit(vmap['Dm']),
+                        # "Limits": [self.parse_unit(vmap['Dn']), self.parse_unit(vmap['Dx'])]
                     },
 
                 }
             }
+            self.add_field(data['Data']['Speed'], "Average", "Sm", vmap)
+            self.add_field(data['Data']['Speed'], "Limits", ["Sn", "Sx"], vmap)
+            self.add_field(data['Data']['Direction'], "Average", "Dm", vmap)
+            self.add_field(data['Data']['Direction'], "Limits", ["Dn", "Dx"], vmap)
+            return data
 
 
 class PTUDataMessageParser(BaseMessageParser):
@@ -243,23 +264,33 @@ class PTUDataMessageParser(BaseMessageParser):
         if values[0] == PTU_RESULT:
             vmap = self.create_lookup(values[1:])
             data = {
-                "Temperature":{
-                    'Ambient': self.parse_unit(vmap['Ta']),
-                    # 'Internal': self.parse_unit(vmap['Tp'])
-                },
-                "Humidity": self.parse_unit(vmap['Ua']),
-                "Pressure": self.parse_unit(vmap['Pa'])
-            }
-
-            if 'Tp' in vmap:
-                data['Temperature']['Internal'] = self.parse_unit(vmap['Tp'])
-            else:
-                logging.warning("Internal Temperature not reported")
-
-            return {
                 "Type": "PTU",
-                "Data": data
+                "Data":{
+                    "Temperature":{
+                        # 'Ambient': self.parse_unit(vmap['Ta']),
+                        # 'Internal': self.parse_unit(vmap['Tp'])
+                    },
+                    # "Humidity": self.parse_unit(vmap['Ua']),
+                    # "Pressure": self.parse_unit(vmap['Pa'])
+                }
             }
+
+            # if 'Tp' in vmap:
+            #     data['Temperature']['Internal'] = self.parse_unit(vmap['Tp'])
+            # else:
+            #     logging.warning("Internal Temperature not reported")
+
+            self.add_field(data['Data']['Temperature'], "Ambient", "Ta", vmap)
+            self.add_field(data['Data']['Temperature'], "Internal", "Tp", vmap)
+            self.add_field(data['Data'], "Humidity", "Ua", vmap)
+            self.add_field(data['Data'], "Pressure", "Pa", vmap)
+
+            # return {
+            #     "Type": "PTU",
+            #     "Data": data
+            # }
+
+            return data
 
 
 class RainDataMessageParser(BaseMessageParser):
@@ -268,23 +299,36 @@ class RainDataMessageParser(BaseMessageParser):
         values = message.split(",")
         if values[0] == RAIN_RESULT:
             vmap = self.create_lookup(values[1:])
-            return {
+            data = {
                 "Type":"Rain",
                 "Data": {
                     "Rain": {
-                        "Intensity": self.parse_unit(vmap['Ri']),
+                        # "Intensity": self.parse_unit(vmap['Ri']),
                         # "Peak": self.parse_unit(vmap['Rp']),
-                        "Accumulation": self.parse_unit(vmap['Rc']),
-                        "Duration": self.parse_unit(vmap['Rd']),
+                        # "Accumulation": self.parse_unit(vmap['Rc']),
+                        # "Duration": self.parse_unit(vmap['Rd']),
                     },
                     "Hail": {
-                        "Intensity": self.parse_unit(vmap['Hi']),
+                        # "Intensity": self.parse_unit(vmap['Hi']),
                         # "Peak": self.parse_unit(vmap['Hp']),
-                        "Accumulation": self.parse_unit(vmap['Hc']),
-                        "Duration": self.parse_unit(vmap['Hd']),
+                        # "Accumulation": self.parse_unit(vmap['Hc']),
+                        # "Duration": self.parse_unit(vmap['Hd']),
                     }
                 }
             }
+
+            self.add_field(data['Data']['Rain'], "Intensity", "Ri", vmap)
+            self.add_field(data['Data']['Rain'], "Peak", "Rp", vmap)
+            self.add_field(data['Data']['Rain'], "Accumulation", "Rc", vmap)
+            self.add_field(data['Data']['Rain'], "Duration", "Rd", vmap)
+
+            self.add_field(data['Data']['Hail'], "Intensity", "Hi", vmap)
+            self.add_field(data['Data']['Hail'], "Peak", "Hp", vmap)
+            self.add_field(data['Data']['Hail'], "Accumulation", "Hc", vmap)
+            self.add_field(data['Data']['Hail'], "Duration", "Hd", vmap)
+
+            return data
+
 
 
 class StatusMessageParser(BaseMessageParser):
@@ -293,20 +337,29 @@ class StatusMessageParser(BaseMessageParser):
         if values[0] == STATUS_RESULT:
 
             vmap = self.create_lookup(values[1:])
-            return {
+            data = {
                 "Type" : "Status",
                 "Data":{
                     "Voltages": {
-                        "Supply": self.parse_unit(vmap['Vs']),
-                        "Reference": self.parse_unit(vmap['Vr']),
-                        "Heating": [self.parse_unit(vmap['Vh'])[0], "V"]
+                        # "Supply": self.parse_unit(vmap['Vs']),
+                        # "Reference": self.parse_unit(vmap['Vr']),
+                        # "Heating": [self.parse_unit(vmap['Vh'])[0], "V"]
                     },
                     "Heating": {
-                        "Temperature": self.parse_unit(vmap["Th"]),
-                        "Status":  self.parse_unit(vmap['Vh'])[1],
+                        # "Temperature": self.parse_unit(vmap["Th"]),
+                        # "Status":  self.parse_unit(vmap['Vh'])[1],
                     }
                 }
             }
+
+            self.add_field(data['Data']['Voltages'], "Supply", "Vs", vmap)
+            self.add_field(data['Data']['Voltages'], "Reference", "Vr", vmap)
+            self.add_field(data['Data']['Voltages'], "Heating", "Vh", vmap, lambda a: [a[0], "V"])
+
+            self.add_field(data['Data']['Heating'], "Temperature", "Th", vmap)
+            self.add_field(data['Data']['Heating'], "Status", "Vh", vmap, lambda a: a[1])
+
+            return data
 
 
 class CommsMessageParser(BaseMessageParser):
@@ -324,17 +377,17 @@ class CommandResponseMessageParser(BaseMessageParser):
         if command == ASCII_COMMAND_RESPONSE:
             return {"Type": "Command Response", "Data": { "Result": values[1]}}
 
-class PTUSettingsMessageParser(BaseMessageParser):
+class SettingsMessageParser(BaseMessageParser):
 
     def __init__(self):
         BaseMessageParser.__init__(self)
-        self.order = ["Pa", "Ta", "Tp", "Ua"]
-
+        self.message = None
+        self.order = None
 
     def parse(self, address, message):
         values = message.split(",")
         command = values[0]
-        if command == ASCII_PTU_SETTINGS:
+        if command == self.message :
             result = {}
             for i in values[1:]:
                 key, value = i.split("=")
@@ -345,35 +398,40 @@ class PTUSettingsMessageParser(BaseMessageParser):
             c = [[False, True][int(x)] for x in list(c)]
 
             result['R']= {
-                "Requested":{
-                                "Pa": m[0],
-                                "Ta": m[1],
-                                "Tp": m[2],
-                                "Ua": m[3],
-                            },
-                "Composite":{
-                                "Pa": c[0],
-                                "Ta": c[1],
-                                "Tp": c[2],
-                                "Ua": c[3],
-                }
+                "Requested":{},
+                "Composite":{}
             }
+
+            for i in range(len(self.order)):
+                result['R']['Requested'][self.order[i]] = m[i]
+                result['R']['Composite'][self.order[i]] = c[i]
 
 
             return result
 
     def create_message(self, settings):
         R = settings['R']
-
         R['Composite'] = "".join([str(int(R["Composite"][x])) for x in self.order])
         R['Requested'] = "".join([str(int(R["Requested"][x])) for x in self.order])
-        settings['R'] = "%s0000&%s0000"%(R['Requested'], R['Composite'])
+        settings['R'] = "%s%s&%s%s"%(R['Requested'], (8 - len(self.order)) * '0', R['Composite'], (8 - len(self.order)) * '0')
         tmp = []
         for i in settings:
             tmp.append("%s=%s"%(i, settings[i]))
 
         return ",".join(tmp)
 
+class PTUSettingsMessageParser(SettingsMessageParser):
+    def __init__(self):
+        SettingsMessageParser.__init__(self)
+        self.order = ["Pa", "Ta", "Tp", "Ua"]
+        self.message = ASCII_PTU_SETTINGS
+
+
+class PrecipationSettingsMessageParser(SettingsMessageParser):
+    def __init__(self):
+        SettingsMessageParser.__init__(self)
+        self.order = ["Rc", "Rd", "Ri", "Hc", "Hd", "Hi", "Rp", "Hp"]
+        self.message = ASCII_PRECIPITATION_SETTINGS
 
 class MessageParser:
     parsers = [
@@ -383,7 +441,8 @@ class MessageParser:
         StatusMessageParser(),
         CommsMessageParser(),
         CommandResponseMessageParser(),
-        PTUSettingsMessageParser()
+        PTUSettingsMessageParser(),
+        PrecipationSettingsMessageParser()
     ]
 
     def __init__(self, has_crc):
@@ -461,6 +520,24 @@ class Message:
     def get_ptu_settings(self):
         return self.checksum(self.address + ASCII_PTU_SETTINGS) + self.term
 
+    def set_ptu_settings(self, settings):
+        return self.checksum(
+            self.address +
+            ASCII_PTU_SETTINGS +
+            "," +
+            PTUSettingsMessageParser().create_message(settings)
+        ) + self.term
+
+    def set_precipitation_settings(self, settings):
+        return self.checksum(
+            self.address +
+            ASCII_PRECIPITATION_SETTINGS +
+            "," +
+            PrecipationSettingsMessageParser().create_message(settings)
+        ) + self.term
+
+    def get_precipitation_settings(self):
+        return self.checksum(self.address + ASCII_PRECIPITATION_SETTINGS) + self.term
 
     # Page 79
     def set_communication_settings(self,
@@ -504,15 +581,6 @@ class Message:
             result += "," + CommunicationParameters.DataBits + "=" + str(data_bits)
 
         return self.checksum(result) + self.term
-
-
-    def set_ptu_settings(self, settings):
-        return self.checksum(
-            self.address +
-            ASCII_PTU_SETTINGS +
-            "," +
-            PTUSettingsMessageParser().create_message(settings)) + \
-            self.term
 
 
 class ASCIIMessage(Message):
