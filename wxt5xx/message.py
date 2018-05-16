@@ -23,6 +23,9 @@ ASCII_RESET = b'xZ'
 ASCII_RESET_PRECIPITATION_INTENSITY = b'xZRI'
 ASCII_RESET_PRECIPITATION_COUNTERS = b'xZRU'
 
+ASCII_PTU_SETTINGS = b'xTU'
+ASCII_Wind_SETTINGS = b'xWU'
+
 WIND_RESULT = "r1"
 PTU_RESULT = "r2"
 RAIN_RESULT = "r3"
@@ -237,16 +240,23 @@ class PTUDataMessageParser(BaseMessageParser):
         values = message.split(",")
         if values[0] == PTU_RESULT:
             vmap = self.create_lookup(values[1:])
+            data = {
+                "Temperature":{
+                    'Ambient': self.parse_unit(vmap['Ta']),
+                    # 'Internal': self.parse_unit(vmap['Tp'])
+                },
+                "Humidity": self.parse_unit(vmap['Ua']),
+                "Pressure": self.parse_unit(vmap['Pa'])
+            }
+
+            if 'Tp' in vmap:
+                data['Temperature']['Internal'] = self.parse_unit(vmap['Tp'])
+            else:
+                logging.warning("Internal Temperature not reported")
+
             return {
                 "Type": "PTU",
-                "Data":{
-                    "Temperature":{
-                        'Ambient': self.parse_unit(vmap['Ta']),
-                        'Internal': self.parse_unit(vmap['Tp'])
-                    },
-                    "Humidity": self.parse_unit(vmap['Ua']),
-                    "Pressure": self.parse_unit(vmap['Pa'])
-                }
+                "Data": data
             }
 
 
@@ -261,13 +271,13 @@ class RainDataMessageParser(BaseMessageParser):
                 "Data": {
                     "Rain": {
                         "Intensity": self.parse_unit(vmap['Ri']),
-                        "Peak": self.parse_unit(vmap['Rp']),
+                        # "Peak": self.parse_unit(vmap['Rp']),
                         "Accumulation": self.parse_unit(vmap['Rc']),
                         "Duration": self.parse_unit(vmap['Rd']),
                     },
                     "Hail": {
                         "Intensity": self.parse_unit(vmap['Hi']),
-                        "Peak": self.parse_unit(vmap['Hp']),
+                        # "Peak": self.parse_unit(vmap['Hp']),
                         "Accumulation": self.parse_unit(vmap['Hc']),
                         "Duration": self.parse_unit(vmap['Hd']),
                     }
@@ -312,6 +322,40 @@ class CommandResponseMessageParser(BaseMessageParser):
         if command == ASCII_COMMAND_RESPONSE:
             return {"Type": "Command Response", "Data": { "Result": values[1]}}
 
+class PTUSettingsMessageParser(BaseMessageParser):
+    def parse(self, address, message):
+        values = message.split(",")
+        command = values[0]
+        if command == ASCII_PTU_SETTINGS:
+            result = {}
+            for i in values[1:]:
+                key, value = i.split("=")
+                result[key] = value
+
+            m,c = result['R'].split("&")
+            m = [[False, True][int(x)] for x in list(m)]
+            c = [[False, True][int(x)] for x in list(c)]
+
+            result['R']= {
+                "Requested":{
+                                "Pa": m[0],
+                                "Ta": m[1],
+                                "Tp": m[2],
+                                "Ua": m[3],
+                            },
+                "Composite":{
+                                "Pa": c[0],
+                                "Ta": c[1],
+                                "Tp": c[2],
+                                "Ua": c[3],
+                }
+            }
+
+
+            return result
+
+
+
 
 class MessageParser:
     parsers = [
@@ -320,7 +364,8 @@ class MessageParser:
         RainDataMessageParser(),
         StatusMessageParser(),
         CommsMessageParser(),
-        CommandResponseMessageParser()
+        CommandResponseMessageParser(),
+        PTUSettingsMessageParser()
     ]
 
     def __init__(self, has_crc):
@@ -395,6 +440,10 @@ class Message:
     def get_communication_settings(self):
         return self.checksum(self.address + self.comms_settings) + self.term
 
+    def get_ptu_settings(self):
+        return self.checksum(self.address + ASCII_PTU_SETTINGS) + self.term
+
+
     # Page 79
     def set_communication_settings(self,
                                    protocol=None,
@@ -438,6 +487,9 @@ class Message:
 
         return self.checksum(result) + self.term
 
+
+    def set_ptu_settings(self):
+        pass
 
 class ASCIIMessage(Message):
     term = ASCII_COMMAND_TERM
