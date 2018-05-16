@@ -81,6 +81,17 @@ class WXT5xx:
         self.__write(self.protocol.set_ptu_settings(settings))
         print self.read_message()
 
+    def get_precipitation_settings(self):
+        self.__write(self.protocol.get_precipitation_settings())
+        time.sleep(0.1)
+        return self.read_message()
+
+    def set_precipitation_settings(self, settings):
+        self.__write(self.protocol.set_precipitation_settings(settings))
+        print self.read_message()
+
+
+
     def reset_precipitation(self):
         results = []
         self.__write(self.protocol.reset_precipation_intensity())
