@@ -26,4 +26,9 @@ setup(name='pyWXT5xx',
       packages=find_packages(),
       zip_safe=False,
       install_requires=["pyserial"],
+      entry_points={
+            "console_scripts": [
+                  "wxt5 = wxt5xx.cli:main",
+            ]
+      }
       )
