@@ -77,6 +77,9 @@ class WXT5xx:
         time.sleep(0.1)
         return self.read_message()
 
+    def set_ptu_settings(self, settings):
+        self.__write(self.protocol.set_ptu_settings(settings))
+        print self.read_message()
 
     def reset_precipitation(self):
         results = []
