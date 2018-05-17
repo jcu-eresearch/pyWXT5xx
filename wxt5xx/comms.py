@@ -79,7 +79,8 @@ class WXT5xx:
 
     def set_ptu_settings(self, settings):
         self.__write(self.protocol.set_ptu_settings(settings))
-        print self.read_message()
+        time.sleep(0.1)
+        return self.read_message()
 
     def get_precipitation_settings(self):
         self.__write(self.protocol.get_precipitation_settings())
@@ -88,7 +89,8 @@ class WXT5xx:
 
     def set_precipitation_settings(self, settings):
         self.__write(self.protocol.set_precipitation_settings(settings))
-        print self.read_message()
+        time.sleep(0.1)
+        return self.read_message()
 
 
 
@@ -99,6 +101,16 @@ class WXT5xx:
         self.__write(self.protocol.reset_precipation_counter())
         results.append(self.read_message())
         return results
+
+    def get_supervisor_settings(self):
+        self.__write(self.protocol.get_supervisor_settings())
+        time.sleep(0.1)
+        return self.read_message()
+
+    def set_supervisor_settings(self, settings):
+        self.__write(self.protocol.set_supervisor_settings(settings))
+        time.sleep(0.1)
+        return self.read_message()
 
     def close(self):
         self.ser.close()
