@@ -26,6 +26,7 @@ ASCII_RESET_PRECIPITATION_COUNTERS = b'xZRU'
 ASCII_PTU_SETTINGS = b'xTU'
 ASCII_WIND_SETTINGS = b'xWU'
 ASCII_PRECIPITATION_SETTINGS = b'xRU'
+ASCII_SUPERVISOR_SETTINGS = b'xSU'
 
 WIND_RESULT = "r1"
 PTU_RESULT = "r2"
@@ -383,6 +384,7 @@ class SettingsMessageParser(BaseMessageParser):
         BaseMessageParser.__init__(self)
         self.message = None
         self.order = None
+        self.ignore=[]
 
     def parse(self, address, message):
         values = message.split(",")
@@ -416,6 +418,7 @@ class SettingsMessageParser(BaseMessageParser):
         settings['R'] = "%s%s&%s%s"%(R['Requested'], (8 - len(self.order)) * '0', R['Composite'], (8 - len(self.order)) * '0')
         tmp = []
         for i in settings:
+            if i in self.ignore: continue
             tmp.append("%s=%s"%(i, settings[i]))
 
         return ",".join(tmp)
@@ -433,6 +436,13 @@ class PrecipationSettingsMessageParser(SettingsMessageParser):
         self.order = ["Rc", "Rd", "Ri", "Hc", "Hd", "Hi", "Rp", "Hp"]
         self.message = ASCII_PRECIPITATION_SETTINGS
 
+class SupervisorSettingsMessageParser(SettingsMessageParser):
+    def __init__(self):
+        SettingsMessageParser.__init__(self)
+        self.order = ["Th", "Vh", "Vs", "Vr", "Id"]
+        self.message = ASCII_SUPERVISOR_SETTINGS
+        self.ignore=['a', 'b', 'c','d','e','f', 'g', 'h', 'j', 'k']
+
 class MessageParser:
     parsers = [
         WindDataMessageParser(),
@@ -442,7 +452,8 @@ class MessageParser:
         CommsMessageParser(),
         CommandResponseMessageParser(),
         PTUSettingsMessageParser(),
-        PrecipationSettingsMessageParser()
+        PrecipationSettingsMessageParser(),
+        SupervisorSettingsMessageParser()
     ]
 
     def __init__(self, has_crc):
@@ -517,27 +528,58 @@ class Message:
     def get_communication_settings(self):
         return self.checksum(self.address + self.comms_settings) + self.term
 
+
+    def __get_settings(self, message_handler):
+        return self.checksum(self.address + message_handler.message) + self.term
+
+    def __set_settings(self, settings, message_handler):
+        return self.checksum(
+            self.address +
+            message_handler.message +
+            "," +
+            message_handler.create_message(settings)
+        ) + self.term
+
     def get_ptu_settings(self):
-        return self.checksum(self.address + ASCII_PTU_SETTINGS) + self.term
+        # return self.checksum(self.address + ASCII_PTU_SETTINGS) + self.term
+        return self.__get_settings(PTUSettingsMessageParser())
 
     def set_ptu_settings(self, settings):
-        return self.checksum(
-            self.address +
-            ASCII_PTU_SETTINGS +
-            "," +
-            PTUSettingsMessageParser().create_message(settings)
-        ) + self.term
-
-    def set_precipitation_settings(self, settings):
-        return self.checksum(
-            self.address +
-            ASCII_PRECIPITATION_SETTINGS +
-            "," +
-            PrecipationSettingsMessageParser().create_message(settings)
-        ) + self.term
+        # msg = PTUSettingsMessageParser()
+        # return self.checksum(
+        #     self.address +
+        #     msg.message +
+        #     "," +
+        #     msg.create_message(settings)
+        # ) + self.term
+        return self.__set_settings(settings, PTUSettingsMessageParser())
 
     def get_precipitation_settings(self):
-        return self.checksum(self.address + ASCII_PRECIPITATION_SETTINGS) + self.term
+        # return self.checksum(self.address + ASCII_PRECIPITATION_SETTINGS) + self.term
+        return self.__get_settings(PrecipationSettingsMessageParser())
+
+    def set_precipitation_settings(self, settings):
+        # msg = PrecipationSettingsMessageParser()
+        # return self.checksum(
+        #     self.address +
+        #     msg.message +
+        #     "," +
+        #     msg.create_message(settings)
+        # ) + self.term
+        return self.__set_settings(settings, PrecipationSettingsMessageParser())
+
+
+    def set_supervisor_settings(self, settings):
+        # return self.checksum(
+        #     self.address +
+        #     ASCII_SUPERVISOR_SETTINGS +
+        #     "," +
+        #     SupervisorSettingsMessageParser().create_message(settings)
+        # ) + self.term
+        return self.__set_settings(settings, SupervisorSettingsMessageParser())
+
+    def get_supervisor_settings(self):
+        return self.__get_settings(SupervisorSettingsMessageParser())
 
     # Page 79
     def set_communication_settings(self,
@@ -599,8 +641,8 @@ class ASCIIMessage(Message):
 class SDI12Message(Message):
     term = SDI12_COMMAND_TERM
 
-    def __init__(self, address):
-        Message.__init__(self, address)
+    def __init__(self, address, has_checksum):
+        Message.__init__(self, address, has_checksum)
         self.comms_settings = SDI12_CONNECTION_INFO
         self.term = SDI12_COMMAND_TERM
 
