@@ -238,6 +238,71 @@ def set_precip(args):
 
     device.close()
 
+def add_supervisor_arguments(parser):
+    parser.add_argument("--interval", metavar="<interval>", default=60, type=int, choices=range(1, 3600), help="The update interval (for automatic mode) from 1 to 3600 seconds.")
+    parser.add_argument("--error_mesg" ,type=bool, choices=[True, False], help="(En/Dis)able Error Messaging")
+    parser.add_argument("--heating" ,type=bool, choices=[True, False], help="(En/Dis)able Heating Control")
+
+    parser.add_argument("--Th" ,type=bool, choices=[True, False], help="(En/Dis)able Heating Temperature")
+    parser.add_argument("--Vh" ,type=bool, choices=[True, False], help="(En/Dis)able Heating Voltage")
+    parser.add_argument("--Vs" ,type=bool, choices=[True, False], help="(En/Dis)able Supply Voltage")
+    parser.add_argument("--Vr" ,type=bool, choices=[True, False], help="(En/Dis)able 3.5V Reference Voltage")
+    parser.add_argument("--Id" ,type=bool, choices=[True, False], help="(En/Dis)able Information Field")
+
+    parser.add_argument("--cTh" ,type=bool, choices=[True, False], help="Composite Message (En/Dis)able Heating Temperature")
+    parser.add_argument("--cVh" ,type=bool, choices=[True, False], help="Composite Message (En/Dis)able Heating Voltage")
+    parser.add_argument("--cVs" ,type=bool, choices=[True, False], help="Composite Message (En/Dis)able Supply Voltage")
+    parser.add_argument("--cVr" ,type=bool, choices=[True, False], help="Composite Message (En/Dis)able 3.5V Reference Voltage")
+    parser.add_argument("--cId" ,type=bool, choices=[True, False], help="Composite Message (En/Dis)able Information Field")
+
+def get_sup(args):
+    device = create_device(args)
+    pprint(device.get_supervisor_settings())
+    device.close()
+
+def set_sup(args):
+    print args
+    device = create_device(args)
+    settings = device.get_supervisor_settings()
+
+    args.logger.info("Original: %s"%settings)
+
+
+    if args.interval is not None:
+        settings['I'] = str(args.interval)
+    if args.error_mesg is not None:
+        settings['S'] = ["N", "Y"][args.error_mesg]
+    if args.heating is not None:
+        settings['H'] = ["N", "Y"][args.heating]
+
+    if args.Th is not None:
+        settings['R']['Requested']['Th'] = args.Th
+    if args.Vh is not None:
+        settings['R']['Requested']['Vh'] = args.Vh
+    if args.Vs is not None:
+        settings['R']['Requested']['Vs'] = args.Vs
+    if args.Vr is not None:
+        settings['R']['Requested']['Vr'] = args.Vr
+    if args.Id is not None:
+        settings['R']['Requested']['Id'] = args.Id
+
+    if args.cTh is not None:
+        settings['R']['Composite']['Th'] = args.cTh
+    if args.cVh is not None:
+        settings['R']['Composite']['Vh'] = args.cVh
+    if args.cVs is not None:
+        settings['R']['Composite']['Vs'] = args.cVs
+    if args.cVr is not None:
+        settings['R']['Composite']['Vr'] = args.cVr
+    if args.cId is not None:
+        settings['R']['Composite']['Id'] = args.cId
+
+    args.logger.info("Updated: %s"%settings)
+    device.set_supervisor_settings(settings)
+
+    device.close()
+
+
 def main():
 
     parser = ArgumentParser(description="Manage a Vaisala device.")
@@ -267,6 +332,15 @@ def main():
     add_serial_arguments(precip_parser)
     add_precip_arguments(precip_parser)
 
+
+    sup_parser = subparsers.add_parser("get_sup", help="Set the Supervisor settings.")
+    add_arguments(sup_parser)
+    add_serial_arguments(sup_parser)
+
+    sup_parser = subparsers.add_parser("set_sup", help="Get the Supervisor settings, for more detail see Page 144-147 of the Manual for more details.")
+    add_arguments(sup_parser)
+    add_serial_arguments(sup_parser)
+    add_supervisor_arguments(sup_parser)
 
     args = parser.parse_args()
 
